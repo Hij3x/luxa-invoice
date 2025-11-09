@@ -18,19 +18,18 @@
       align-items: center;
     }
     header h1 { margin: 0; font-size: 20px; }
-    header .right a, header .right button {
+    header .right button {
       color: white;
-      text-decoration: none;
-      margin-left: 10px;
       border: 1px solid #fff;
       background: transparent;
       padding: 4px 10px;
       border-radius: 4px;
       cursor: pointer;
       font-size: 12px;
+      margin-left: 8px;
     }
     main {
-      max-width: 1000px;
+      max-width: 1100px;
       margin: 20px auto;
       background: white;
       padding: 20px;
@@ -53,6 +52,11 @@
       font-size: 14px;
       box-sizing: border-box;
     }
+    .row-wrap {
+      display: flex;
+      gap: 10px;
+    }
+    .row-wrap .field { flex: 1; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -79,10 +83,15 @@
       background: #fff;
       color: #1f4e79;
     }
+    .btn.small { font-size: 11px; padding: 4px 8px; }
     .error {
       color: #b00020;
       margin-bottom: 10px;
       font-size: 13px;
+    }
+    .small {
+      font-size: 12px;
+      color: #555;
     }
     .badge {
       display: inline-block;
@@ -93,19 +102,22 @@
     }
     .badge.paid { background: #c8e6c9; }
     .badge.unpaid { background: #ffccbc; }
-    .small {
-      font-size: 12px;
-      color: #555;
-    }
+    .badge.req { background: #ffe082; }
     .totals {
       margin-top: 10px;
       text-align: right;
+    }
+    .tabs {
+      margin-bottom: 10px;
+    }
+    .tabs button {
+      margin-right: 5px;
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>Luxa Invoice System (Browser)</h1>
+    <h1>Luxa Invoice System</h1>
     <div class="right">
       <span id="login-status" class="small">Not logged in</span>
       <button id="login-btn">Admin Login</button>
@@ -114,138 +126,204 @@
   </header>
 
   <main>
-    <!-- Login panel -->
-    <section id="login-panel" class="hidden">
+    <!-- Login -->
+    <section id="login-panel">
       <h2>Admin Login</h2>
       <div class="error" id="login-error"></div>
-      <div class="field">
+      <div class="field" style="max-width:300px;">
         <label>Admin Password</label>
         <input type="password" id="admin-password-input" />
       </div>
       <button class="btn" id="submit-login">Login</button>
-    </section>
-
-    <!-- Invoice list -->
-    <section id="list-panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h2>Invoices</h2>
-        <button class="btn" id="new-invoice-btn" disabled>Create New Invoice (Admin)</button>
-      </div>
-      <p class="small">
-        Data is stored only in this browser (localStorage). Clearing browser data will remove it.
+      <p class="small" style="margin-top:10px;">
+        You must be logged in to view invoices, inventory, or requests.
       </p>
-      <table id="invoice-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Customer</th>
-            <th>Date</th>
-            <th>Total</th>
-            <th>Status</th>
-            <th>View</th>
-          </tr>
-        </thead>
-        <tbody id="invoice-tbody">
-          <!-- rows inserted by JS -->
-        </tbody>
-      </table>
     </section>
 
-    <!-- Invoice form (create/edit) -->
-    <section id="form-panel" class="hidden">
-      <h2>Create Invoice</h2>
-      <div class="error" id="form-error"></div>
-      <div class="field">
-        <label>Invoice Number</label>
-        <input type="text" id="inv-number" placeholder="e.g. P0122001" />
-      </div>
-      <div class="field">
-        <label>Customer Name</label>
-        <input type="text" id="inv-customer" />
-      </div>
-      <div class="field">
-        <label>PO Number</label>
-        <input type="text" id="inv-po" />
-      </div>
-      <div class="field">
-        <label>Issue Date</label>
-        <input type="date" id="inv-date" />
-      </div>
-      <div class="field">
-        <label>Paid?</label>
-        <select id="inv-paid">
-          <option value="false">No (Unpaid)</option>
-          <option value="true">Yes (Paid)</option>
-        </select>
+    <!-- Main content (only when logged in) -->
+    <section id="app-panel" class="hidden">
+      <div class="tabs">
+        <button class="btn small" id="tab-invoices">Invoices</button>
+        <button class="btn small secondary" id="tab-inventory">Inventory</button>
+        <button class="btn small secondary" id="tab-requests">Requests</button>
       </div>
 
-      <h3>Line Items</h3>
-      <table id="lines-table">
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Qty</th>
-            <th>Unit Price</th>
-            <th>Line Total</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="lines-tbody">
-        </tbody>
-      </table>
-      <button class="btn secondary" id="add-line-btn" type="button">Add Line</button>
+      <!-- INVOICES -->
+      <section id="invoices-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h2>Invoices</h2>
+          <button class="btn" id="new-invoice-btn">Create New Invoice</button>
+        </div>
+        <p class="small">
+          Invoices are stored in this browser (localStorage). HST is 13%.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Customer</th>
+              <th>Date</th>
+              <th>Subtotal</th>
+              <th>HST (13%)</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>View</th>
+            </tr>
+          </thead>
+          <tbody id="invoice-tbody"></tbody>
+        </table>
+      </section>
 
-      <div class="totals">
-        <strong>Total: $<span id="inv-total">0.00</span></strong>
-      </div>
+      <!-- INVENTORY -->
+      <section id="inventory-panel" class="hidden">
+        <h2>Inventory</h2>
+        <p class="small">
+          Import from Excel: save your inventory sheet as CSV (columns: Code, Description, UnitPrice, Stock), then choose it below.
+        </p>
+        <div class="field" style="max-width:400px;">
+          <label>Import Inventory CSV</label>
+          <input type="file" id="inventory-file" accept=".csv" />
+        </div>
+        <button class="btn secondary" id="btn-clear-inventory">Clear Inventory</button>
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Unit Price</th>
+              <th>Stock</th>
+            </tr>
+          </thead>
+          <tbody id="inventory-tbody"></tbody>
+        </table>
+      </section>
 
-      <div style="margin-top:10px;">
-        <button class="btn" id="save-invoice-btn">Save Invoice</button>
-        <button class="btn secondary" id="cancel-form-btn" type="button">Cancel</button>
-      </div>
-    </section>
+      <!-- REQUESTS -->
+      <section id="requests-panel" class="hidden">
+        <h2>Item Requests</h2>
+        <p class="small">
+          These are created when an invoice is denied due to insufficient stock.
+        </p>
+        <button class="btn secondary" id="btn-clear-requests">Clear Requests</button>
+        <table>
+          <thead>
+            <tr>
+              <th>Item Code</th>
+              <th>Item Name</th>
+              <th>Requested Qty</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="requests-tbody"></tbody>
+        </table>
+      </section>
 
-    <!-- View single invoice -->
-    <section id="view-panel" class="hidden">
-      <h2>Invoice <span id="view-number"></span></h2>
-      <div class="small">
-        <div><strong>Customer:</strong> <span id="view-customer"></span></div>
-        <div><strong>PO #:</strong> <span id="view-po"></span></div>
-        <div><strong>Date:</strong> <span id="view-date"></span></div>
-        <div><strong>Status:</strong> <span id="view-status"></span></div>
-      </div>
-      <table id="view-lines-table">
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Qty</th>
-            <th>Unit Price</th>
-            <th>Line Total</th>
-          </tr>
-        </thead>
-        <tbody id="view-lines-tbody">
-        </tbody>My
-      </table>
-      <div class="totals">
-        <strong>Total: $<span id="view-total"></span></strong>
-      </div>
-      <div style="margin-top:10px;">
-        <button class="btn secondary" id="back-to-list-btn">Back to list</button>
-      </div>
+      <!-- INVOICE FORM -->
+      <section id="form-panel" class="hidden">
+        <h2>Create Invoice</h2>
+        <div class="error" id="form-error"></div>
+        <div class="row-wrap">
+          <div class="field">
+            <label>Invoice Number</label>
+            <input type="text" id="inv-number" placeholder="e.g. P0122001" />
+          </div>
+          <div class="field">
+            <label>Customer Name</label>
+            <input type="text" id="inv-customer" />
+          </div>
+        </div>
+        <div class="row-wrap">
+          <div class="field">
+            <label>PO Number</label>
+            <input type="text" id="inv-po" />
+          </div>
+          <div class="field">
+            <label>Issue Date</label>
+            <input type="date" id="inv-date" />
+          </div>
+          <div class="field">
+            <label>Paid?</label>
+            <select id="inv-paid">
+              <option value="false">No (Unpaid)</option>
+              <option value="true">Yes (Paid)</option>
+            </select>
+          </div>
+        </div>
+
+        <h3>Line Items</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Item Code</th>
+              <th>Qty</th>
+              <th>Unit Price</th>
+              <th>Line Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="lines-tbody"></tbody>
+        </table>
+        <button class="btn secondary" type="button" id="add-line-btn">Add Line</button>
+
+        <div class="totals">
+          <div>Subtotal: $<span id="inv-subtotal">0.00</span></div>
+          <div>HST (13%): $<span id="inv-hst">0.00</span></div>
+          <div><strong>Total: $<span id="inv-total">0.00</span></strong></div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <button class="btn" id="save-invoice-btn">Save Invoice</button>
+          <button class="btn secondary" type="button" id="cancel-form-btn">Cancel</button>
+        </div>
+      </section>
+
+      <!-- VIEW INVOICE -->
+      <section id="view-panel" class="hidden">
+        <h2>Invoice <span id="view-number"></span></h2>
+        <div class="small">
+          <div><strong>Customer:</strong> <span id="view-customer"></span></div>
+          <div><strong>PO #:</strong> <span id="view-po"></span></div>
+          <div><strong>Date:</strong> <span id="view-date"></span></div>
+          <div><strong>Status:</strong> <span id="view-status"></span></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Item Code</th>
+              <th>Qty</th>
+              <th>Unit Price</th>
+              <th>Line Total</th>
+            </tr>
+          </thead>
+          <tbody id="view-lines-tbody"></tbody>
+        </table>
+        <div class="totals">
+          <div>Subtotal: $<span id="view-subtotal"></span></div>
+          <div>HST (13%): $<span id="view-hst"></span></div>
+          <div><strong>Total: $<span id="view-total"></span></strong></div>
+        </div>
+        <div style="margin-top:10px;">
+          <button class="btn secondary" id="back-to-list-btn">Back to invoices</button>
+        </div>
+      </section>
     </section>
   </main>
 
   <script>
-    // ========= CONFIG =========
-    const ADMIN_PASSWORD = "LuxaWasEST.2024"; // <-- change to your own password
+    // ===== CONFIG =====
+    const ADMIN_PASSWORD = "LuxaAdmin123"; // <-- CHANGE THIS
+    const HST_RATE = 0.13;                 // 13% HST
 
-    // localStorage key
-    const STORAGE_KEY = "luxa_invoices_v1";
+    const STORAGE_INVOICES = "luxa_invoices_v3";
+    const STORAGE_ITEMS    = "luxa_items_v1";
+    const STORAGE_REQUESTS = "luxa_requests_v1";
 
     let isAdmin = false;
-    let invoices = []; // loaded from localStorage
+    let invoices = [];
+    let items = [];
+    let requests = [];
 
-    // ========= DOM ELEMENTS =========
+    // ===== DOM =====
     const loginStatusEl = document.getElementById("login-status");
     const loginBtn = document.getElementById("login-btn");
     const logoutBtn = document.getElementById("logout-btn");
@@ -254,13 +332,26 @@
     const adminPassInput = document.getElementById("admin-password-input");
     const submitLoginBtn = document.getElementById("submit-login");
 
-    const listPanel = document.getElementById("list-panel");
-    const formPanel = document.getElementById("form-panel");
-    const viewPanel = document.getElementById("view-panel");
+    const appPanel = document.getElementById("app-panel");
+    const invoicesPanel = document.getElementById("invoices-panel");
+    const inventoryPanel = document.getElementById("inventory-panel");
+    const requestsPanel = document.getElementById("requests-panel");
+
+    const tabInvoicesBtn = document.getElementById("tab-invoices");
+    const tabInventoryBtn = document.getElementById("tab-inventory");
+    const tabRequestsBtn = document.getElementById("tab-requests");
 
     const newInvoiceBtn = document.getElementById("new-invoice-btn");
     const invTbody = document.getElementById("invoice-tbody");
 
+    const inventoryFileInput = document.getElementById("inventory-file");
+    const inventoryTbody = document.getElementById("inventory-tbody");
+    const btnClearInventory = document.getElementById("btn-clear-inventory");
+
+    const requestsTbody = document.getElementById("requests-tbody");
+    const btnClearRequests = document.getElementById("btn-clear-requests");
+
+    const formPanel = document.getElementById("form-panel");
     const formErrorEl = document.getElementById("form-error");
     const invNumberInput = document.getElementById("inv-number");
     const invCustomerInput = document.getElementById("inv-customer");
@@ -268,97 +359,139 @@
     const invDateInput = document.getElementById("inv-date");
     const invPaidSelect = document.getElementById("inv-paid");
     const linesTbody = document.getElementById("lines-tbody");
+    const invSubtotalEl = document.getElementById("inv-subtotal");
+    const invHstEl = document.getElementById("inv-hst");
     const invTotalEl = document.getElementById("inv-total");
     const addLineBtn = document.getElementById("add-line-btn");
     const saveInvoiceBtn = document.getElementById("save-invoice-btn");
     const cancelFormBtn = document.getElementById("cancel-form-btn");
 
+    const viewPanel = document.getElementById("view-panel");
     const viewNumberEl = document.getElementById("view-number");
     const viewCustomerEl = document.getElementById("view-customer");
     const viewPoEl = document.getElementById("view-po");
     const viewDateEl = document.getElementById("view-date");
     const viewStatusEl = document.getElementById("view-status");
-    const viewTotalEl = document.getElementById("view-total");
     const viewLinesTbody = document.getElementById("view-lines-tbody");
+    const viewSubtotalEl = document.getElementById("view-subtotal");
+    const viewHstEl = document.getElementById("view-hst");
+    const viewTotalEl = document.getElementById("view-total");
     const backToListBtn = document.getElementById("back-to-list-btn");
 
-    // ========= STORAGE =========
-    function loadInvoices() {
+    // ===== STORAGE =====
+    function loadAll() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        invoices = raw ? JSON.parse(raw) : [];
-      } catch (e) {
-        invoices = [];
-      }
+        invoices = JSON.parse(localStorage.getItem(STORAGE_INVOICES) || "[]");
+      } catch { invoices = []; }
+      try {
+        items = JSON.parse(localStorage.getItem(STORAGE_ITEMS) || "[]");
+      } catch { items = []; }
+      try {
+        requests = JSON.parse(localStorage.getItem(STORAGE_REQUESTS) || "[]");
+      } catch { requests = []; }
     }
-
     function saveInvoices() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices));
+      localStorage.setItem(STORAGE_INVOICES, JSON.stringify(invoices));
+    }
+    function saveItems() {
+      localStorage.setItem(STORAGE_ITEMS, JSON.stringify(items));
+    }
+    function saveRequests() {
+      localStorage.setItem(STORAGE_REQUESTS, JSON.stringify(requests));
     }
 
-    // ========= UI STATE =========
-    function showPanel(which) {
-      loginPanel.classList.add("hidden");
-      listPanel.classList.add("hidden");
-      formPanel.classList.add("hidden");
-      viewPanel.classList.add("hidden");
-
-      if (which === "login") loginPanel.classList.remove("hidden");
-      if (which === "list") listPanel.classList.remove("hidden");
-      if (which === "form") formPanel.classList.remove("hidden");
-      if (which === "view") viewPanel.classList.remove("hidden");
-    }
-
+    // ===== AUTH =====
     function updateAuthUI() {
       if (isAdmin) {
         loginStatusEl.textContent = "Logged in as admin";
         loginBtn.classList.add("hidden");
         logoutBtn.classList.remove("hidden");
-        newInvoiceBtn.disabled = false;
+        loginPanel.classList.add("hidden");
+        appPanel.classList.remove("hidden");
       } else {
         loginStatusEl.textContent = "Not logged in";
         loginBtn.classList.remove("hidden");
         logoutBtn.classList.add("hidden");
-        newInvoiceBtn.disabled = true;
+        appPanel.classList.add("hidden");
+        loginPanel.classList.remove("hidden");
       }
     }
 
-    // ========= RENDER LIST =========
+    loginBtn.addEventListener("click", () => {
+      loginErrorEl.textContent = "";
+      adminPassInput.value = "";
+      loginPanel.classList.remove("hidden");
+      appPanel.classList.add("hidden");
+    });
+
+    logoutBtn.addEventListener("click", () => {
+      isAdmin = false;
+      updateAuthUI();
+    });
+
+    submitLoginBtn.addEventListener("click", () => {
+      const pass = adminPassInput.value;
+      if (pass === ADMIN_PASSWORD) {
+        isAdmin = true;
+        updateAuthUI();
+      } else {
+        loginErrorEl.textContent = "Incorrect admin password.";
+      }
+    });
+
+    // ===== TABS =====
+    function showTab(which) {
+      invoicesPanel.classList.add("hidden");
+      inventoryPanel.classList.add("hidden");
+      requestsPanel.classList.add("hidden");
+
+      tabInvoicesBtn.classList.remove("secondary");
+      tabInventoryBtn.classList.add("secondary");
+      tabRequestsBtn.classList.add("secondary");
+
+      if (which === "invoices") {
+        invoicesPanel.classList.remove("hidden");
+        tabInvoicesBtn.classList.remove("secondary");
+      } else if (which === "inventory") {
+        inventoryPanel.classList.remove("hidden");
+        tabInventoryBtn.classList.remove("secondary");
+      } else if (which === "requests") {
+        requestsPanel.classList.remove("hidden");
+        tabRequestsBtn.classList.remove("secondary");
+      }
+    }
+
+    tabInvoicesBtn.addEventListener("click", () => showTab("invoices"));
+    tabInventoryBtn.addEventListener("click", () => showTab("inventory"));
+    tabRequestsBtn.addEventListener("click", () => showTab("requests"));
+
+    // ===== INVOICE LIST =====
     function renderInvoiceList() {
       invTbody.innerHTML = "";
       if (invoices.length === 0) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 6;
+        td.colSpan = 8;
         td.textContent = "No invoices yet.";
         tr.appendChild(td);
         invTbody.appendChild(tr);
         return;
       }
-
-      invoices
-        .slice()
-        .sort((a,b)=> (b.date_issued || "").localeCompare(a.date_issued || ""))
-        .forEach(inv => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${inv.number}</td>
-            <td>${inv.customer}</td>
-            <td>${inv.date_issued || ""}</td>
-            <td>$${inv.total.toFixed(2)}</td>
-            <td>
-              <span class="badge ${inv.paid ? "paid" : "unpaid"}">
-                ${inv.paid ? "Paid" : "Unpaid"}
-              </span>
-            </td>
-            <td>
-              <button class="btn secondary btn-sm" data-view-id="${inv.id}">View</button>
-            </td>
-          `;
-          invTbody.appendChild(tr);
-        });
-
-      // attach listeners for view buttons
+      const sorted = invoices.slice().sort((a,b) => (b.date_issued || "").localeCompare(a.date_issued || ""));
+      sorted.forEach(inv => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${inv.number}</td>
+          <td>${inv.customer}</td>
+          <td>${inv.date_issued || ""}</td>
+          <td>$${inv.subtotal.toFixed(2)}</td>
+          <td>$${inv.hst.toFixed(2)}</td>
+          <td>$${inv.total.toFixed(2)}</td>
+          <td><span class="badge ${inv.paid ? "paid" : "unpaid"}">${inv.paid ? "Paid" : "Unpaid"}</span></td>
+          <td><button class="btn small secondary" data-view-id="${inv.id}">View</button></td>
+        `;
+        invTbody.appendChild(tr);
+      });
       invTbody.querySelectorAll("button[data-view-id]").forEach(btn => {
         btn.addEventListener("click", () => {
           const id = btn.getAttribute("data-view-id");
@@ -367,8 +500,120 @@
       });
     }
 
-    // ========= NEW INVOICE FORM =========
-    function clearForm() {
+    // ===== INVENTORY RENDER =====
+    function renderInventory() {
+      inventoryTbody.innerHTML = "";
+      if (items.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 4;
+        td.textContent = "No inventory loaded.";
+        tr.appendChild(td);
+        inventoryTbody.appendChild(tr);
+        return;
+      }
+      items.forEach(it => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${it.code}</td>
+          <td>${it.description}</td>
+          <td>$${Number(it.unitPrice).toFixed(2)}</td>
+          <td>${it.stock}</td>
+        `;
+        inventoryTbody.appendChild(tr);
+      });
+    }
+
+    // ===== REQUESTS RENDER =====
+    function renderRequests() {
+      requestsTbody.innerHTML = "";
+      if (requests.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 4;
+        td.textContent = "No requests.";
+        tr.appendChild(td);
+        requestsTbody.appendChild(tr);
+        return;
+      }
+      requests.forEach(req => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${req.itemCode}</td>
+          <td>${req.itemName || ""}</td>
+          <td>${req.requestedQty}</td>
+          <td>${req.createdAt}</td>
+        `;
+        requestsTbody.appendChild(tr);
+      });
+    }
+
+    btnClearInventory.addEventListener("click", () => {
+      if (!confirm("Clear all inventory items from this browser?")) return;
+      items = [];
+      saveItems();
+      renderInventory();
+    });
+
+    btnClearRequests.addEventListener("click", () => {
+      if (!confirm("Clear all requests?")) return;
+      requests = [];
+      saveRequests();
+      renderRequests();
+    });
+
+    // ===== CSV IMPORT =====
+    inventoryFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target.result;
+        parseInventoryCSV(text);
+      };
+      reader.readAsText(file);
+    });
+
+    function parseInventoryCSV(text) {
+      const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+      if (lines.length <= 1) {
+        alert("CSV has no data.");
+        return;
+      }
+      const newItems = [];
+      for (let i = 1; i < lines.length; i++) { // skip header
+        const parts = lines[i].split(",");
+        if (parts.length < 4) continue;
+        const code = parts[0].trim();
+        const description = parts[1].trim();
+        const unitPrice = parseFloat(parts[2]) || 0;
+        const stock = parseFloat(parts[3]) || 0;
+        if (!code) continue;
+        newItems.push({ code, description, unitPrice, stock });
+      }
+      items = newItems;
+      saveItems();
+      renderInventory();
+      alert("Inventory imported: " + items.length + " items.");
+    }
+
+    // ===== FORM: NEW INVOICE =====
+    newInvoiceBtn.addEventListener("click", () => {
+      clearInvoiceForm();
+      formPanel.classList.remove("hidden");
+      invoicesPanel.classList.add("hidden");
+      viewPanel.classList.add("hidden");
+    });
+
+    cancelFormBtn.addEventListener("click", () => {
+      formPanel.classList.add("hidden");
+      invoicesPanel.classList.remove("hidden");
+      viewPanel.classList.add("hidden");
+    });
+
+    addLineBtn.addEventListener("click", () => addLineRow());
+
+    function clearInvoiceForm() {
       formErrorEl.textContent = "";
       invNumberInput.value = suggestNextInvoiceNumber();
       invCustomerInput.value = "";
@@ -377,18 +622,15 @@
       invPaidSelect.value = "false";
       linesTbody.innerHTML = "";
       addLineRow();
-      updateFormTotal();
+      updateFormTotals();
     }
 
     function suggestNextInvoiceNumber() {
       if (invoices.length === 0) return "P0122001";
-      // get last by number if numeric part exists
       let last = invoices[0].number || "P0122001";
-      // try to find the highest by number string
       invoices.forEach(inv => {
         if (inv.number && inv.number > last) last = inv.number;
       });
-      // separate prefix + digits
       let prefix = "";
       let digits = "";
       for (let ch of last) {
@@ -401,38 +643,64 @@
 
     function addLineRow() {
       const tr = document.createElement("tr");
+      const options = items.map(it => `<option value="${it.code}">${it.code} - ${it.description}</option>`).join("");
       tr.innerHTML = `
-        <td><input type="text" class="line-item" /></td>
+        <td>
+          <select class="line-item">
+            <option value="">--select--</option>
+            ${options}
+          </select>
+        </td>
         <td><input type="number" min="0" step="1" class="line-qty" /></td>
         <td><input type="number" min="0" step="0.01" class="line-price" /></td>
         <td class="line-total">$0.00</td>
-        <td><button type="button" class="btn secondary btn-remove-line">X</button></td>
+        <td><button type="button" class="btn small secondary btn-remove-line">X</button></td>
       `;
       linesTbody.appendChild(tr);
 
-      tr.querySelector(".line-qty").addEventListener("input", updateFormTotal);
-      tr.querySelector(".line-price").addEventListener("input", updateFormTotal);
-      tr.querySelector(".btn-remove-line").addEventListener("click", () => {
+      const selectEl = tr.querySelector(".line-item");
+      const qtyEl = tr.querySelector(".line-qty");
+      const priceEl = tr.querySelector(".line-price");
+      const removeBtn = tr.querySelector(".btn-remove-line");
+
+      selectEl.addEventListener("change", () => {
+        const code = selectEl.value;
+        const it = items.find(i => i.code === code);
+        if (it) {
+          priceEl.value = it.unitPrice;
+        }
+        updateFormTotals();
+      });
+      qtyEl.addEventListener("input", updateFormTotals);
+      priceEl.addEventListener("input", updateFormTotals);
+      removeBtn.addEventListener("click", () => {
         tr.remove();
-        updateFormTotal();
+        updateFormTotals();
       });
     }
 
-    function updateFormTotal() {
-      let total = 0;
+    function updateFormTotals() {
+      let subtotal = 0;
       linesTbody.querySelectorAll("tr").forEach(tr => {
         const qty = parseFloat(tr.querySelector(".line-qty").value) || 0;
         const price = parseFloat(tr.querySelector(".line-price").value) || 0;
         const lineTotal = qty * price;
-        total += lineTotal;
+        subtotal += lineTotal;
         tr.querySelector(".line-total").textContent = "$" + lineTotal.toFixed(2);
       });
+      const hst = subtotal * HST_RATE;
+      const total = subtotal + hst;
+      invSubtotalEl.textContent = subtotal.toFixed(2);
+      invHstEl.textContent = hst.toFixed(2);
       invTotalEl.textContent = total.toFixed(2);
     }
 
+    saveInvoiceBtn.addEventListener("click", () => {
+      saveInvoiceFromForm();
+    });
+
     function saveInvoiceFromForm() {
       formErrorEl.textContent = "";
-
       const number = invNumberInput.value.trim();
       const customer = invCustomerInput.value.trim();
       const po = invPoInput.value.trim();
@@ -447,24 +715,82 @@
         formErrorEl.textContent = "Customer name is required.";
         return;
       }
-
+      const lineEls = Array.from(linesTbody.querySelectorAll("tr"));
       const lines = [];
-      let total = 0;
+      let subtotal = 0;
+      let stockIssues = [];
+      const usedItemsMap = {}; // code -> qty used
 
-      linesTbody.querySelectorAll("tr").forEach(tr => {
-        const item = tr.querySelector(".line-item").value.trim();
+      lineEls.forEach(tr => {
+        const sel = tr.querySelector(".line-item");
+        const code = sel.value;
         const qty = parseFloat(tr.querySelector(".line-qty").value) || 0;
         const price = parseFloat(tr.querySelector(".line-price").value) || 0;
-        if (!item && qty === 0 && price === 0) return;
+        if (!code && qty === 0 && price === 0) return;
+        const item = items.find(i => i.code === code);
+        if (!item) {
+          stockIssues.push(`Item ${code || "(blank)"} not found in inventory.`);
+          return;
+        }
+        if (qty <= 0) {
+          stockIssues.push(`Item ${code}: quantity must be > 0.`);
+        }
         const lineTotal = qty * price;
-        total += lineTotal;
-        lines.push({ item, qty, unit_price: price, line_total: lineTotal });
+        subtotal += lineTotal;
+        lines.push({
+          itemCode: code,
+          itemName: item.description,
+          qty,
+          unit_price: price,
+          line_total: lineTotal
+        });
+        usedItemsMap[code] = (usedItemsMap[code] || 0) + qty;
       });
 
       if (lines.length === 0) {
-        formErrorEl.textContent = "At least one line item is required.";
+        formErrorEl.textContent = "At least one valid line item is required.";
         return;
       }
+
+      // Check stock
+      Object.keys(usedItemsMap).forEach(code => {
+        const it = items.find(i => i.code === code);
+        if (!it) return;
+        const needed = usedItemsMap[code];
+        if (needed > it.stock) {
+          stockIssues.push(`Item ${code}: requested ${needed}, available ${it.stock}.`);
+        }
+      });
+
+      if (stockIssues.length > 0) {
+        const msg = "Invoice Denied, Not Enough Inventory:\n\n" + stockIssues.join("\n") + "\n\nRequest inventory now?";
+        if (confirm(msg)) {
+          // Add requests
+          Object.keys(usedItemsMap).forEach(code => {
+            const it = items.find(i => i.code === code);
+            const needed = usedItemsMap[code];
+            if (!it || needed <= 0 || needed > (it.stock || 0)) {
+              addRequest(code, it ? it.description : "", needed);
+            }
+          });
+          alert("Requested.");
+        }
+        renderRequests();
+        return; // do NOT save invoice or deduct stock
+      }
+
+      // All good: deduct stock
+      Object.keys(usedItemsMap).forEach(code => {
+        const it = items.find(i => i.code === code);
+        if (!it) return;
+        const needed = usedItemsMap[code];
+        it.stock = Math.max(0, (it.stock || 0) - needed);
+      });
+      saveItems();
+      renderInventory();
+
+      const hst = subtotal * HST_RATE;
+      const total = subtotal + hst;
 
       const inv = {
         id: "inv_" + Date.now(),
@@ -474,20 +800,34 @@
         date_issued: dateIssued,
         paid,
         lines,
+        subtotal,
+        hst,
         total
       };
-
       invoices.push(inv);
       saveInvoices();
       renderInvoiceList();
-      showPanel("list");
+
+      formPanel.classList.add("hidden");
+      invoicesPanel.classList.remove("hidden");
+      viewPanel.classList.add("hidden");
     }
 
-    // ========= VIEW INVOICE =========
+    function addRequest(code, name, qty) {
+      const now = new Date();
+      requests.push({
+        itemCode: code,
+        itemName: name,
+        requestedQty: qty,
+        createdAt: now.toISOString().slice(0,19).replace("T"," ")
+      });
+      saveRequests();
+    }
+
+    // ===== VIEW INVOICE =====
     function viewInvoice(id) {
       const inv = invoices.find(x => x.id === id);
       if (!inv) return;
-
       viewNumberEl.textContent = inv.number;
       viewCustomerEl.textContent = inv.customer;
       viewPoEl.textContent = inv.po || "";
@@ -495,75 +835,40 @@
       viewStatusEl.innerHTML = inv.paid
         ? '<span class="badge paid">Paid</span>'
         : '<span class="badge unpaid">Unpaid</span>';
-      viewTotalEl.textContent = inv.total.toFixed(2);
 
       viewLinesTbody.innerHTML = "";
       inv.lines.forEach(line => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${line.item}</td>
+          <td>${line.itemCode}</td>
           <td>${line.qty}</td>
           <td>$${line.unit_price.toFixed(2)}</td>
           <td>$${line.line_total.toFixed(2)}</td>
         `;
         viewLinesTbody.appendChild(tr);
       });
+      viewSubtotalEl.textContent = inv.subtotal.toFixed(2);
+      viewHstEl.textContent = inv.hst.toFixed(2);
+      viewTotalEl.textContent = inv.total.toFixed(2);
 
-      showPanel("view");
+      invoicesPanel.classList.add("hidden");
+      formPanel.classList.add("hidden");
+      viewPanel.classList.remove("hidden");
     }
 
-    // ========= EVENT LISTENERS =========
-    loginBtn.addEventListener("click", () => {
-      loginErrorEl.textContent = "";
-      adminPassInput.value = "";
-      showPanel("login");
-    });
-
-    logoutBtn.addEventListener("click", () => {
-      isAdmin = false;
-      updateAuthUI();
-      showPanel("list");
-    });
-
-    submitLoginBtn.addEventListener("click", () => {
-      const pass = adminPassInput.value;
-      if (pass === ADMIN_PASSWORD) {
-        isAdmin = true;
-        updateAuthUI();
-        showPanel("list");
-      } else {
-        loginErrorEl.textContent = "Incorrect admin password.";
-      }
-    });
-
-    newInvoiceBtn.addEventListener("click", () => {
-      if (!isAdmin) return;
-      clearForm();
-      showPanel("form");
-    });
-
-    addLineBtn.addEventListener("click", () => {
-      addLineRow();
-    });
-
-    saveInvoiceBtn.addEventListener("click", () => {
-      saveInvoiceFromForm();
-    });
-
-    cancelFormBtn.addEventListener("click", () => {
-      showPanel("list");
-    });
-
     backToListBtn.addEventListener("click", () => {
-      showPanel("list");
+      viewPanel.classList.add("hidden");
+      invoicesPanel.classList.remove("hidden");
     });
 
-    // ========= INIT =========
+    // ===== INIT =====
     (function init() {
-      loadInvoices();
+      loadAll();
       updateAuthUI();
       renderInvoiceList();
-      showPanel("list");
+      renderInventory();
+      renderRequests();
+      showTab("invoices");
     })();
   </script>
 </body>
