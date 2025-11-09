@@ -1,0 +1,570 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Luxa Invoice System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f5f7fb;
+    }
+    header {
+      background: #1f4e79;
+      color: white;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { margin: 0; font-size: 20px; }
+    header .right a, header .right button {
+      color: white;
+      text-decoration: none;
+      margin-left: 10px;
+      border: 1px solid #fff;
+      background: transparent;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    main {
+      max-width: 1000px;
+      margin: 20px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    h2 { margin-top: 0; }
+    .hidden { display: none; }
+    .field {
+      margin-bottom: 10px;
+    }
+    .field label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      padding: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 6px;
+      text-align: left;
+    }
+    th { background: #f0f0f0; }
+    .btn {
+      padding: 6px 14px;
+      font-size: 13px;
+      border-radius: 4px;
+      border: 1px solid #1f4e79;
+      background: #1f4e79;
+      color: white;
+      cursor: pointer;
+      margin-right: 5px;
+    }
+    .btn.secondary {
+      background: #fff;
+      color: #1f4e79;
+    }
+    .error {
+      color: #b00020;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      font-size: 11px;
+      border-radius: 3px;
+      background: #eee;
+    }
+    .badge.paid { background: #c8e6c9; }
+    .badge.unpaid { background: #ffccbc; }
+    .small {
+      font-size: 12px;
+      color: #555;
+    }
+    .totals {
+      margin-top: 10px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Luxa Invoice System (Browser)</h1>
+    <div class="right">
+      <span id="login-status" class="small">Not logged in</span>
+      <button id="login-btn">Admin Login</button>
+      <button id="logout-btn" class="hidden">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Login panel -->
+    <section id="login-panel" class="hidden">
+      <h2>Admin Login</h2>
+      <div class="error" id="login-error"></div>
+      <div class="field">
+        <label>Admin Password</label>
+        <input type="password" id="admin-password-input" />
+      </div>
+      <button class="btn" id="submit-login">Login</button>
+    </section>
+
+    <!-- Invoice list -->
+    <section id="list-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2>Invoices</h2>
+        <button class="btn" id="new-invoice-btn" disabled>Create New Invoice (Admin)</button>
+      </div>
+      <p class="small">
+        Data is stored only in this browser (localStorage). Clearing browser data will remove it.
+      </p>
+      <table id="invoice-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Customer</th>
+            <th>Date</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th>View</th>
+          </tr>
+        </thead>
+        <tbody id="invoice-tbody">
+          <!-- rows inserted by JS -->
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Invoice form (create/edit) -->
+    <section id="form-panel" class="hidden">
+      <h2>Create Invoice</h2>
+      <div class="error" id="form-error"></div>
+      <div class="field">
+        <label>Invoice Number</label>
+        <input type="text" id="inv-number" placeholder="e.g. P0122001" />
+      </div>
+      <div class="field">
+        <label>Customer Name</label>
+        <input type="text" id="inv-customer" />
+      </div>
+      <div class="field">
+        <label>PO Number</label>
+        <input type="text" id="inv-po" />
+      </div>
+      <div class="field">
+        <label>Issue Date</label>
+        <input type="date" id="inv-date" />
+      </div>
+      <div class="field">
+        <label>Paid?</label>
+        <select id="inv-paid">
+          <option value="false">No (Unpaid)</option>
+          <option value="true">Yes (Paid)</option>
+        </select>
+      </div>
+
+      <h3>Line Items</h3>
+      <table id="lines-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Line Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="lines-tbody">
+        </tbody>
+      </table>
+      <button class="btn secondary" id="add-line-btn" type="button">Add Line</button>
+
+      <div class="totals">
+        <strong>Total: $<span id="inv-total">0.00</span></strong>
+      </div>
+
+      <div style="margin-top:10px;">
+        <button class="btn" id="save-invoice-btn">Save Invoice</button>
+        <button class="btn secondary" id="cancel-form-btn" type="button">Cancel</button>
+      </div>
+    </section>
+
+    <!-- View single invoice -->
+    <section id="view-panel" class="hidden">
+      <h2>Invoice <span id="view-number"></span></h2>
+      <div class="small">
+        <div><strong>Customer:</strong> <span id="view-customer"></span></div>
+        <div><strong>PO #:</strong> <span id="view-po"></span></div>
+        <div><strong>Date:</strong> <span id="view-date"></span></div>
+        <div><strong>Status:</strong> <span id="view-status"></span></div>
+      </div>
+      <table id="view-lines-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Line Total</th>
+          </tr>
+        </thead>
+        <tbody id="view-lines-tbody">
+        </tbody>My
+      </table>
+      <div class="totals">
+        <strong>Total: $<span id="view-total"></span></strong>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn secondary" id="back-to-list-btn">Back to list</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ========= CONFIG =========
+    const ADMIN_PASSWORD = "LuxaWasEST.2024"; // <-- change to your own password
+
+    // localStorage key
+    const STORAGE_KEY = "luxa_invoices_v1";
+
+    let isAdmin = false;
+    let invoices = []; // loaded from localStorage
+
+    // ========= DOM ELEMENTS =========
+    const loginStatusEl = document.getElementById("login-status");
+    const loginBtn = document.getElementById("login-btn");
+    const logoutBtn = document.getElementById("logout-btn");
+    const loginPanel = document.getElementById("login-panel");
+    const loginErrorEl = document.getElementById("login-error");
+    const adminPassInput = document.getElementById("admin-password-input");
+    const submitLoginBtn = document.getElementById("submit-login");
+
+    const listPanel = document.getElementById("list-panel");
+    const formPanel = document.getElementById("form-panel");
+    const viewPanel = document.getElementById("view-panel");
+
+    const newInvoiceBtn = document.getElementById("new-invoice-btn");
+    const invTbody = document.getElementById("invoice-tbody");
+
+    const formErrorEl = document.getElementById("form-error");
+    const invNumberInput = document.getElementById("inv-number");
+    const invCustomerInput = document.getElementById("inv-customer");
+    const invPoInput = document.getElementById("inv-po");
+    const invDateInput = document.getElementById("inv-date");
+    const invPaidSelect = document.getElementById("inv-paid");
+    const linesTbody = document.getElementById("lines-tbody");
+    const invTotalEl = document.getElementById("inv-total");
+    const addLineBtn = document.getElementById("add-line-btn");
+    const saveInvoiceBtn = document.getElementById("save-invoice-btn");
+    const cancelFormBtn = document.getElementById("cancel-form-btn");
+
+    const viewNumberEl = document.getElementById("view-number");
+    const viewCustomerEl = document.getElementById("view-customer");
+    const viewPoEl = document.getElementById("view-po");
+    const viewDateEl = document.getElementById("view-date");
+    const viewStatusEl = document.getElementById("view-status");
+    const viewTotalEl = document.getElementById("view-total");
+    const viewLinesTbody = document.getElementById("view-lines-tbody");
+    const backToListBtn = document.getElementById("back-to-list-btn");
+
+    // ========= STORAGE =========
+    function loadInvoices() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        invoices = raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        invoices = [];
+      }
+    }
+
+    function saveInvoices() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices));
+    }
+
+    // ========= UI STATE =========
+    function showPanel(which) {
+      loginPanel.classList.add("hidden");
+      listPanel.classList.add("hidden");
+      formPanel.classList.add("hidden");
+      viewPanel.classList.add("hidden");
+
+      if (which === "login") loginPanel.classList.remove("hidden");
+      if (which === "list") listPanel.classList.remove("hidden");
+      if (which === "form") formPanel.classList.remove("hidden");
+      if (which === "view") viewPanel.classList.remove("hidden");
+    }
+
+    function updateAuthUI() {
+      if (isAdmin) {
+        loginStatusEl.textContent = "Logged in as admin";
+        loginBtn.classList.add("hidden");
+        logoutBtn.classList.remove("hidden");
+        newInvoiceBtn.disabled = false;
+      } else {
+        loginStatusEl.textContent = "Not logged in";
+        loginBtn.classList.remove("hidden");
+        logoutBtn.classList.add("hidden");
+        newInvoiceBtn.disabled = true;
+      }
+    }
+
+    // ========= RENDER LIST =========
+    function renderInvoiceList() {
+      invTbody.innerHTML = "";
+      if (invoices.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 6;
+        td.textContent = "No invoices yet.";
+        tr.appendChild(td);
+        invTbody.appendChild(tr);
+        return;
+      }
+
+      invoices
+        .slice()
+        .sort((a,b)=> (b.date_issued || "").localeCompare(a.date_issued || ""))
+        .forEach(inv => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${inv.number}</td>
+            <td>${inv.customer}</td>
+            <td>${inv.date_issued || ""}</td>
+            <td>$${inv.total.toFixed(2)}</td>
+            <td>
+              <span class="badge ${inv.paid ? "paid" : "unpaid"}">
+                ${inv.paid ? "Paid" : "Unpaid"}
+              </span>
+            </td>
+            <td>
+              <button class="btn secondary btn-sm" data-view-id="${inv.id}">View</button>
+            </td>
+          `;
+          invTbody.appendChild(tr);
+        });
+
+      // attach listeners for view buttons
+      invTbody.querySelectorAll("button[data-view-id]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-view-id");
+          viewInvoice(id);
+        });
+      });
+    }
+
+    // ========= NEW INVOICE FORM =========
+    function clearForm() {
+      formErrorEl.textContent = "";
+      invNumberInput.value = suggestNextInvoiceNumber();
+      invCustomerInput.value = "";
+      invPoInput.value = "";
+      invDateInput.value = new Date().toISOString().slice(0,10);
+      invPaidSelect.value = "false";
+      linesTbody.innerHTML = "";
+      addLineRow();
+      updateFormTotal();
+    }
+
+    function suggestNextInvoiceNumber() {
+      if (invoices.length === 0) return "P0122001";
+      // get last by number if numeric part exists
+      let last = invoices[0].number || "P0122001";
+      // try to find the highest by number string
+      invoices.forEach(inv => {
+        if (inv.number && inv.number > last) last = inv.number;
+      });
+      // separate prefix + digits
+      let prefix = "";
+      let digits = "";
+      for (let ch of last) {
+        if (/\d/.test(ch)) digits += ch; else prefix += ch;
+      }
+      if (!digits) return "P0122001";
+      let n = parseInt(digits, 10) + 1;
+      return prefix + n.toString().padStart(digits.length, "0");
+    }
+
+    function addLineRow() {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input type="text" class="line-item" /></td>
+        <td><input type="number" min="0" step="1" class="line-qty" /></td>
+        <td><input type="number" min="0" step="0.01" class="line-price" /></td>
+        <td class="line-total">$0.00</td>
+        <td><button type="button" class="btn secondary btn-remove-line">X</button></td>
+      `;
+      linesTbody.appendChild(tr);
+
+      tr.querySelector(".line-qty").addEventListener("input", updateFormTotal);
+      tr.querySelector(".line-price").addEventListener("input", updateFormTotal);
+      tr.querySelector(".btn-remove-line").addEventListener("click", () => {
+        tr.remove();
+        updateFormTotal();
+      });
+    }
+
+    function updateFormTotal() {
+      let total = 0;
+      linesTbody.querySelectorAll("tr").forEach(tr => {
+        const qty = parseFloat(tr.querySelector(".line-qty").value) || 0;
+        const price = parseFloat(tr.querySelector(".line-price").value) || 0;
+        const lineTotal = qty * price;
+        total += lineTotal;
+        tr.querySelector(".line-total").textContent = "$" + lineTotal.toFixed(2);
+      });
+      invTotalEl.textContent = total.toFixed(2);
+    }
+
+    function saveInvoiceFromForm() {
+      formErrorEl.textContent = "";
+
+      const number = invNumberInput.value.trim();
+      const customer = invCustomerInput.value.trim();
+      const po = invPoInput.value.trim();
+      const dateIssued = invDateInput.value;
+      const paid = (invPaidSelect.value === "true");
+
+      if (!number) {
+        formErrorEl.textContent = "Invoice number is required.";
+        return;
+      }
+      if (!customer) {
+        formErrorEl.textContent = "Customer name is required.";
+        return;
+      }
+
+      const lines = [];
+      let total = 0;
+
+      linesTbody.querySelectorAll("tr").forEach(tr => {
+        const item = tr.querySelector(".line-item").value.trim();
+        const qty = parseFloat(tr.querySelector(".line-qty").value) || 0;
+        const price = parseFloat(tr.querySelector(".line-price").value) || 0;
+        if (!item && qty === 0 && price === 0) return;
+        const lineTotal = qty * price;
+        total += lineTotal;
+        lines.push({ item, qty, unit_price: price, line_total: lineTotal });
+      });
+
+      if (lines.length === 0) {
+        formErrorEl.textContent = "At least one line item is required.";
+        return;
+      }
+
+      const inv = {
+        id: "inv_" + Date.now(),
+        number,
+        customer,
+        po,
+        date_issued: dateIssued,
+        paid,
+        lines,
+        total
+      };
+
+      invoices.push(inv);
+      saveInvoices();
+      renderInvoiceList();
+      showPanel("list");
+    }
+
+    // ========= VIEW INVOICE =========
+    function viewInvoice(id) {
+      const inv = invoices.find(x => x.id === id);
+      if (!inv) return;
+
+      viewNumberEl.textContent = inv.number;
+      viewCustomerEl.textContent = inv.customer;
+      viewPoEl.textContent = inv.po || "";
+      viewDateEl.textContent = inv.date_issued || "";
+      viewStatusEl.innerHTML = inv.paid
+        ? '<span class="badge paid">Paid</span>'
+        : '<span class="badge unpaid">Unpaid</span>';
+      viewTotalEl.textContent = inv.total.toFixed(2);
+
+      viewLinesTbody.innerHTML = "";
+      inv.lines.forEach(line => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${line.item}</td>
+          <td>${line.qty}</td>
+          <td>$${line.unit_price.toFixed(2)}</td>
+          <td>$${line.line_total.toFixed(2)}</td>
+        `;
+        viewLinesTbody.appendChild(tr);
+      });
+
+      showPanel("view");
+    }
+
+    // ========= EVENT LISTENERS =========
+    loginBtn.addEventListener("click", () => {
+      loginErrorEl.textContent = "";
+      adminPassInput.value = "";
+      showPanel("login");
+    });
+
+    logoutBtn.addEventListener("click", () => {
+      isAdmin = false;
+      updateAuthUI();
+      showPanel("list");
+    });
+
+    submitLoginBtn.addEventListener("click", () => {
+      const pass = adminPassInput.value;
+      if (pass === ADMIN_PASSWORD) {
+        isAdmin = true;
+        updateAuthUI();
+        showPanel("list");
+      } else {
+        loginErrorEl.textContent = "Incorrect admin password.";
+      }
+    });
+
+    newInvoiceBtn.addEventListener("click", () => {
+      if (!isAdmin) return;
+      clearForm();
+      showPanel("form");
+    });
+
+    addLineBtn.addEventListener("click", () => {
+      addLineRow();
+    });
+
+    saveInvoiceBtn.addEventListener("click", () => {
+      saveInvoiceFromForm();
+    });
+
+    cancelFormBtn.addEventListener("click", () => {
+      showPanel("list");
+    });
+
+    backToListBtn.addEventListener("click", () => {
+      showPanel("list");
+    });
+
+    // ========= INIT =========
+    (function init() {
+      loadInvoices();
+      updateAuthUI();
+      renderInvoiceList();
+      showPanel("list");
+    })();
+  </script>
+</body>
+</html>
